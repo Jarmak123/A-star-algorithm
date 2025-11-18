@@ -4,9 +4,9 @@
 #include <vector>
 using namespace std;
 
-void wczytaj_grid(vector<vector<int>>& grid){
+void wczytaj_grid(vector<vector<float>>& grid){
     ifstream MyFile("./grid.txt");
-    grid.resize(20, vector<int>(20));
+    grid.resize(20, vector<float>(20));
     for(int i=0; i<20;i++){
         for(int j=0; j<20; j++)
         {
@@ -17,10 +17,10 @@ void wczytaj_grid(vector<vector<int>>& grid){
 
 float heurystyka(int x_akt, int y_akt, int x_cel, int y_cel)
 {
-    return sqrt(pow((x_akt-x_cel),2)+pow((y_akt-y_cel),2));
+    return round(sqrt(pow((x_akt-x_cel),2)+pow((y_akt-y_cel),2))*100)/100;
 }
 
-void wyswietl_grid(vector<vector<int>>& tab){
+void wyswietl_grid(vector<vector<float>>& tab){
     for (int i=0; i<20; i++)
     {
         for (int j=0; j<20; j++)
@@ -31,21 +31,107 @@ void wyswietl_grid(vector<vector<int>>& tab){
     }
 }
 
-// void czy_w_zakresie(int x_akt, int y_akt, vector<vector<int>>& grid, int cena_kroki, ){
-//     int dx[] = {-1, 1, 0, 0};
-//     int dy[] = {0, 0, -1, 1};
-//     //góra dól lewo prawo
+bool czy_w_zamknietej(vector<vector<int>>& tablica_zamnieta, int x, int y){
+    for (int i=0; i<tablica_zamnieta.size();i++)
+    {
+        if(tablica_zamnieta[i][0]==x && tablica_zamnieta[i][1]==y)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
-//     if (x_akt >= 0 && x_akt < grid.size() && y_akt >= 0 && y_akt < grid[x_akt].size()) {
-//         int fpoz = cena_kroki + heurystyka(tablica_zamnieta.back()[0],tablica_zamnieta.back()[1],x_cel,y_cel)
-//     }
-// }
+bool czy_w_otwartej(vector<vector<int>>& tablica_otwarta, int x, int y){
+    for (int i=0; i<tablica_otwarta.size();i++)
+    {
+        if(tablica_otwarta[i][0]==x && tablica_otwarta[i][1]==y)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
-//kolejnosc ruchów to góra, dół lewo prawo
+vector<int> aktualizacja_x_y_akt(vector<vector<float>>& grid, int x_akt, int y_akt) {
+    int kx[] = {-1, 1, 0, 0};
+    int ky[] = {0, 0, -1, 1};
+    float temp = 0;
+    vector<int> result={0,0};
+    for(int i=0;i<4;i++){
+        int nx = x_akt + kx[i];
+        int ny = y_akt + ky[i];
+        if(temp<=grid[x_akt+kx[i]][y_akt+ky[i]]){
+            temp=grid[x_akt+kx[i]][y_akt+ky[i]];
+            result={x_akt+kx[i],y_akt+ky[i]};
+        }
+    }
+    return result;
+}
+
+void dodanie_na_grid(int x_akt, int y_akt, int cena_kroki, int x_cel, int y_cel, vector<vector<float>>& grid, vector<vector<int>>& tablica_zamnieta, vector<vector<int>>& tablica_otwarta){
+    int kx[] = {-1, 1, 0, 0};
+    int ky[] = {0, 0, -1, 1};
+
+    for(int i=0;i<4;i++){
+        int nx = x_akt + kx[i];
+        int ny = y_akt + ky[i];
+        if(nx>=0 && nx<grid.size()&& ny>=0 && ny<grid[nx].size() && grid[nx][ny]!=5 && !czy_w_zamknietej(tablica_zamnieta,x_akt+kx[i],y_akt+ky[i]))
+        {
+            tablica_otwarta.push_back({nx,ny});
+        }
+    }
+}
+
+void dodanie_do_tab_otwartej(int x_akt, int y_akt, int cena_kroki, int x_cel, int y_cel, vector<vector<float>>& grid, vector<vector<int>>& tablica_zamnieta, vector<vector<int>>& tablica_otwarta){
+    int kx[] = {-1, 1, 0, 0};
+    int ky[] = {0, 0, -1, 1};
+
+    for(int i=0;i<4;i++){
+        int nx = x_akt + kx[i];
+        int ny = y_akt + ky[i];
+        if(nx>=0 && nx<grid.size()&& ny>=0 && ny<grid[nx].size() && grid[nx][ny]!=5 && !czy_w_zamknietej(tablica_zamnieta,x_akt+kx[i],y_akt+ky[i]))
+        {
+            tablica_otwarta.push_back({nx,ny});
+        }
+    }
+
+    // for(int i=0; i<4; i++){
+    //     int nx = x_akt + kx[i];
+    //     int ny = y_akt + ky[i];
+
+    //     for (int i=0; i<20;i++)
+    //     {
+    //         if(tablica_zamnieta[i][0]==nx and tablica_zamnieta[i][1]==ny)
+    //         {
+    //             continue;
+    //         }
+    //         else
+    //         {
+    //             if (x_akt >= 0 && x_akt < grid.size() && grid[nx][ny]!=5 && y_akt >= 0 && y_akt < grid[nx].size()) 
+    //             {
+    //                 float fpoz = cena_kroki + heurystyka(tablica_zamnieta.back()[0],tablica_zamnieta.back()[1],x_cel,y_cel);
+    //                 return fpoz;
+    //             }
+    //         }
+    //     }
+    // }
+}
+
+bool czy_cel(vector<vector<int>>& tablica_zamnieta, int x_cel, int y_cel){
+    for(int i=0; i<tablica_zamnieta.size();i++)
+    {
+        if(tablica_zamnieta[i][0]==x_cel && tablica_zamnieta[i][1]==y_cel)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 int main() {
-    vector<vector<int>> grid; 
+    vector<vector<float>> grid; 
     wczytaj_grid(grid);
-    wyswietl_grid(grid);
 
     int x_start=0;
     int y_start=0;
@@ -70,21 +156,17 @@ int main() {
     int x_akt = x_start;
     int y_akt = y_start;
 
-    while(1){
+    while (true)
+    {
         cena_kroki++;
-        int kx[] = {-1, 1, 0, 0};
-        int ky[] = {0, 0, -1, 1};
+        dodanie_do_tab_otwartej(x_akt,y_akt,cena_kroki,x_cel,y_cel,grid,tablica_zamnieta,tablica_otwarta);
         
-        for(int i=0; i<4; i++){
-            int nx = x_akt + kx[i];
-            int ny = y_akt + ky[i];
+        
 
-            if (x_akt >= 0 && x_akt < grid.size() && grid[x_akt][y_akt]!=5 && y_akt >= 0 && y_akt < grid[x_akt].size()) 
-            {
-                int fpoz = cena_kroki + heurystyka(tablica_zamnieta.back()[0],tablica_zamnieta.back()[1],x_cel,y_cel);
-            }
-        }
+        if(czy_cel(tablica_zamnieta,x_cel,y_cel)) break;
     }
+
+    wyswietl_grid(grid);
 
     return 0;
 }
