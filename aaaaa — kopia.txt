@@ -1,0 +1,222 @@
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <vector>
+#include <limits>
+#include <iomanip>
+
+using namespace std;
+
+struct Node {
+    int x, y;
+    float cena_kroku;     // G-cost
+    float koszt_ogolny;   // F = G + H
+    int px, py;           // rodzic (współrzędne)
+    int order;            // kolejność dodania do listy otwartej (do rozwiązywania remisów)
+};
+
+void wczytaj_grid(vector<vector<float>>& grid){
+    ifstream MyFile("./grid.txt");
+    grid.resize(20, vector<float>(20));
+    for(int i=0; i<20;i++){
+        for(int j=0; j<20; j++){
+            MyFile >> grid[i][j];
+        }
+    }
+}
+
+float heurystyka(int x_akt, int y_akt, int x_cel, int y_cel)
+{
+    // heurystyka euklidesowa — dopuszczalna dla ruchu 4-kierunkowego (nie zawyża faktycznego kosztu)
+    return sqrt((x_akt-x_cel)*(x_akt-x_cel) + (y_akt-y_cel)*(y_akt-y_cel));
+}
+
+void wyswietl_grid(vector<vector<float>>& tab){
+    for (int i=0; i<20; i++){
+        for (int j=0; j<20; j++){
+            cout << setw(7) << fixed << setprecision(2) << tab[i][j] << " ";
+        }
+        cout << endl;
+    }
+}
+
+bool czy_w_zamknietej(vector<vector<int>>& tablica_zamnieta, int x, int y){
+    for (int i=0; i<tablica_zamnieta.size();i++)
+    {
+        if(tablica_zamnieta[i][0]==x && tablica_zamnieta[i][1]==y)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool czy_w_otwartej(vector<Node>& otwarta, int x, int y){
+    for (int i=0; i<otwarta.size(); i++)
+        if(otwarta[i].x==x && otwarta[i].y==y) return true;
+    return false;
+}
+
+// globalny licznik porządku dodania do otwartej
+int global_order_counter = 0;
+
+void dodanie_do_tab_otwartej(int x_akt, int y_akt, float cena_akt, int x_cel, int y_cel, vector<vector<float>>& grid, vector<vector<int>>& zamknieta, vector<Node>& otwarta, vector<vector<int>>& parentX, vector<vector<int>>& parentY)
+{
+    int kx[4]={-1,1,0,0};
+    int ky[4]={0,0,-1,1};
+
+    for(int i=0;i<4;i++){
+        int nx = x_akt + kx[i];
+        int ny = y_akt + ky[i];
+
+        if(nx<0 || nx>=20 || ny<0 || ny>=20) continue;
+        if(grid[nx][ny] == 5) continue; // 5 traktujemy jako przeszkodę
+        if(czy_w_zamknietej(zamknieta, nx, ny)) continue;
+
+        float nowy_g = cena_akt + 1.0f;
+        float nowy_h = heurystyka(nx, ny, x_cel, y_cel);
+        float nowy_f = nowy_g + nowy_h;
+
+        // jeśli już w otwartej — porównujemy nowe f z obecnym f i zmieniamy rodzica tylko gdy nowe f < obecne f
+        bool jest = false;
+        for (auto& n : otwarta)
+        {
+            if(n.x == nx && n.y == ny)
+            {
+                jest = true;
+                if(nowy_f < n.koszt_ogolny){
+                    n.cena_kroku = nowy_g;
+                    n.koszt_ogolny = nowy_f;
+                    n.px = x_akt;
+                    n.py = y_akt;
+                    // UWAGA: nie zmieniamy pola order — pozostaje kolejność dodania
+                    parentX[nx][ny] = x_akt;
+                    parentY[nx][ny] = y_akt;
+                }
+                break;
+            }
+        }
+
+        if(!jest){
+            Node nowy;
+            nowy.x = nx;
+            nowy.y = ny;
+            nowy.cena_kroku = nowy_g;
+            nowy.koszt_ogolny = nowy_f;
+            nowy.px = x_akt;
+            nowy.py = y_akt;
+            nowy.order = ++global_order_counter; // przypisujemy rosnący numer (większy = dodany później)
+            otwarta.push_back(nowy);
+
+            parentX[nx][ny] = x_akt;
+            parentY[nx][ny] = y_akt;
+        }
+    }
+}
+
+int main() {
+    vector<vector<float>> grid;
+    vector<vector<float>> grid_droga; 
+    wczytaj_grid(grid);
+    wczytaj_grid(grid_droga);
+    
+    int x_start=0, y_start=0;
+    int x_cel, y_cel;
+
+    cout << "Podaj x_cel <0-19>: ";
+    cin >> x_cel;
+    cout << "Podaj y_cel <0-19>: ";
+    cin >> y_cel;
+
+    if(x_cel<0 || x_cel>19 || y_cel<0 || y_cel>19){
+        cout << "Bledne wartosci!" << endl;
+        return 0;
+    }
+
+    vector<vector<int>> zamknieta;
+    vector<Node> otwarta;
+
+    int x_akt=x_start;
+    int y_akt=y_start;
+
+    // tablice rodziców dla rekonstrukcji ścieżki (inicjalizacja -1)
+    vector<vector<int>> parentX(20, vector<int>(20, -1));
+    vector<vector<int>> parentY(20, vector<int>(20, -1));
+
+    // startowy nod — dodajemy na otwartą (zgodnie z Krokami: otwarta początkowo pusta, ale w Twoim wcześniejszym kodzie
+    // start był w zamkniętej; tutaj minimalnie: dodajemy start do otwartej i potem przenosimy)
+    Node start;
+    start.x = x_start;
+    start.y = y_start;
+    start.cena_kroku = 0.0f;
+    start.koszt_ogolny = heurystyka(x_start, y_start, x_cel, y_cel); // F = G + H
+    start.px = -1;
+    start.py = -1;
+    start.order = ++global_order_counter;
+    otwarta.push_back(start);
+    parentX[x_start][y_start] = -1;
+    parentY[x_start][y_start] = -1;
+
+    Node cel;
+    bool znaleziono = false;
+
+    while(!otwarta.empty()){
+        // wybór najmniejszego F; przy równości F wybieramy węzeł który został dodany najpóźniej (większy order)
+        int naj = 0;
+        for(int i=1;i<otwarta.size();i++)
+        {
+            if(otwarta[i].koszt_ogolny < otwarta[naj].koszt_ogolny ||
+               (fabs(otwarta[i].koszt_ogolny - otwarta[naj].koszt_ogolny) < 1e-6 && otwarta[i].order > otwarta[naj].order))
+            {
+                naj = i;
+            }
+        }
+
+        Node akt = otwarta[naj];
+        // usuwamy z otwartej i przenosimy do zamkniętej (Krok 7 i 5)
+        otwarta.erase(otwarta.begin() + naj);
+        zamknieta.push_back({akt.x, akt.y});
+
+        x_akt = akt.x;
+        y_akt = akt.y;
+
+        // zapisujemy koszt w mapie (opcjonalnie, tak jak w Twoim oryginalnym kodzie)
+        grid[x_akt][y_akt] = akt.koszt_ogolny;
+
+        if(x_akt == x_cel && y_akt == y_cel)
+        {
+            cout << "znaleziono drogę" << endl;
+            cel = akt;
+            znaleziono = true;
+            break;
+        }
+
+        // dodanie sąsiadów (Krok 6)
+        dodanie_do_tab_otwartej(x_akt,y_akt, akt.cena_kroku, x_cel,y_cel, grid, zamknieta, otwarta, parentX, parentY);
+    }
+
+    // Krok 9: rekonstrukcja ścieżki gdy znaleziono
+    if(znaleziono){
+        int cx = x_cel;
+        int cy = y_cel;
+        while(!(cx == -1 && cy == -1)){
+            grid_droga[cx][cy] = 99;
+            int px = parentX[cx][cy];
+            int py = parentY[cx][cy];
+            if(px == -1 && py == -1) break;
+            cx = px;
+            cy = py;
+        }
+        // oznaczamy start również
+        grid_droga[x_start][y_start] = 99;
+    } 
+    else {
+        cout << "Nie mozna dotrzec do celu (lista otwarta pusta)." << endl;
+    }
+
+    cout << "Mapa (koszt f na odwiedzonych):" << endl;
+    wyswietl_grid(grid);
+    cout << "Droga (99 oznacza sciezke):" << endl;
+    wyswietl_grid(grid_droga);
+    return 0;
+}

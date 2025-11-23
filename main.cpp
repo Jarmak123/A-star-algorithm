@@ -2,14 +2,22 @@
 #include <fstream>
 #include <cmath>
 #include <vector>
+#include <limits>
+#include <iomanip>
+
 using namespace std;
+
+struct Node {
+    int x, y;
+    float cena_kroku;
+    float koszt_ogolny;
+};
 
 void wczytaj_grid(vector<vector<float>>& grid){
     ifstream MyFile("./grid.txt");
     grid.resize(20, vector<float>(20));
     for(int i=0; i<20;i++){
-        for(int j=0; j<20; j++)
-        {
+        for(int j=0; j<20; j++){
             MyFile >> grid[i][j];
         }
     }
@@ -21,11 +29,9 @@ float heurystyka(int x_akt, int y_akt, int x_cel, int y_cel)
 }
 
 void wyswietl_grid(vector<vector<float>>& tab){
-    for (int i=0; i<20; i++)
-    {
-        for (int j=0; j<20; j++)
-        {
-            cout << tab[i][j] << " ";
+    for (int i=0; i<20; i++){
+        for (int j=0; j<20; j++){
+            cout << setw(7) << fixed << setprecision(2) << tab[i][j] << " ";
         }
         cout << endl;
     }
@@ -42,131 +48,99 @@ bool czy_w_zamknietej(vector<vector<int>>& tablica_zamnieta, int x, int y){
     return false;
 }
 
-bool czy_w_otwartej(vector<vector<int>>& tablica_otwarta, int x, int y){
-    for (int i=0; i<tablica_otwarta.size();i++)
-    {
-        if(tablica_otwarta[i][0]==x && tablica_otwarta[i][1]==y)
-        {
-            return true;
-        }
-    }
+bool czy_w_otwartej(vector<Node>& otwarta, int x, int y){
+    for (int i=0; i<otwarta.size(); i++)
+        if(otwarta[i].x==x && otwarta[i].y==y) return true;
     return false;
 }
 
-vector<int> aktualizacja_x_y_akt(vector<vector<float>>& grid, int x_akt, int y_akt) {
-    int kx[] = {-1, 1, 0, 0};
-    int ky[] = {0, 0, -1, 1};
-    float temp = 0;
-    vector<int> result={0,0};
-    for(int i=0;i<4;i++){
-        int nx = x_akt + kx[i];
-        int ny = y_akt + ky[i];
-        if(temp<=grid[x_akt+kx[i]][y_akt+ky[i]]){
-            temp=grid[x_akt+kx[i]][y_akt+ky[i]];
-            result={x_akt+kx[i],y_akt+ky[i]};
-        }
-    }
-    return result;
-}
-
-void dodanie_na_grid(int x_akt, int y_akt, int cena_kroki, int x_cel, int y_cel, vector<vector<float>>& grid, vector<vector<int>>& tablica_zamnieta, vector<vector<int>>& tablica_otwarta){
-    int kx[] = {-1, 1, 0, 0};
-    int ky[] = {0, 0, -1, 1};
+void dodanie_do_tab_otwartej(int x_akt, int y_akt,int cena_akt,int x_cel, int y_cel,vector<vector<float>>& grid,vector<vector<int>>& zamknieta,vector<Node>& otwarta)
+{
+    int kx[4]={-1,1,0,0};
+    int ky[4]={0,0,-1,1};
 
     for(int i=0;i<4;i++){
         int nx = x_akt + kx[i];
         int ny = y_akt + ky[i];
-        if(nx>=0 && nx<grid.size()&& ny>=0 && ny<grid[nx].size() && grid[nx][ny]!=5 && !czy_w_zamknietej(tablica_zamnieta,x_akt+kx[i],y_akt+ky[i]))
-        {
-            tablica_otwarta.push_back({nx,ny});
+
+        if(nx<0 || nx>=20 || ny<0 || ny>=20) continue;
+        if(grid[nx][ny] == 5) continue;
+        if(czy_w_zamknietej(zamknieta, nx, ny)) continue;
+
+        if(!czy_w_otwartej(otwarta, nx, ny)){
+            Node nowy;
+            nowy.x = nx;
+            nowy.y = ny;
+            nowy.cena_kroku = cena_akt;
+            nowy.koszt_ogolny = heurystyka(nx, ny, x_cel, y_cel) + nowy.cena_kroku;
+            otwarta.push_back(nowy);
         }
     }
-}
-
-void dodanie_do_tab_otwartej(int x_akt, int y_akt, int cena_kroki, int x_cel, int y_cel, vector<vector<float>>& grid, vector<vector<int>>& tablica_zamnieta, vector<vector<int>>& tablica_otwarta){
-    int kx[] = {-1, 1, 0, 0};
-    int ky[] = {0, 0, -1, 1};
-
-    for(int i=0;i<4;i++){
-        int nx = x_akt + kx[i];
-        int ny = y_akt + ky[i];
-        if(nx>=0 && nx<grid.size()&& ny>=0 && ny<grid[nx].size() && grid[nx][ny]!=5 && !czy_w_zamknietej(tablica_zamnieta,x_akt+kx[i],y_akt+ky[i]))
-        {
-            tablica_otwarta.push_back({nx,ny});
-        }
-    }
-
-    // for(int i=0; i<4; i++){
-    //     int nx = x_akt + kx[i];
-    //     int ny = y_akt + ky[i];
-
-    //     for (int i=0; i<20;i++)
-    //     {
-    //         if(tablica_zamnieta[i][0]==nx and tablica_zamnieta[i][1]==ny)
-    //         {
-    //             continue;
-    //         }
-    //         else
-    //         {
-    //             if (x_akt >= 0 && x_akt < grid.size() && grid[nx][ny]!=5 && y_akt >= 0 && y_akt < grid[nx].size()) 
-    //             {
-    //                 float fpoz = cena_kroki + heurystyka(tablica_zamnieta.back()[0],tablica_zamnieta.back()[1],x_cel,y_cel);
-    //                 return fpoz;
-    //             }
-    //         }
-    //     }
-    // }
-}
-
-bool czy_cel(vector<vector<int>>& tablica_zamnieta, int x_cel, int y_cel){
-    for(int i=0; i<tablica_zamnieta.size();i++)
-    {
-        if(tablica_zamnieta[i][0]==x_cel && tablica_zamnieta[i][1]==y_cel)
-        {
-            return true;
-        }
-    }
-    return false;
 }
 
 int main() {
-    vector<vector<float>> grid; 
+    vector<vector<float>> grid;
+    vector<vector<float>> grid_droga; 
     wczytaj_grid(grid);
+    wczytaj_grid(grid_droga);
+    
+    int x_start=0, y_start=0;
+    int x_cel, y_cel;
 
-    int x_start=0;
-    int y_start=0;
-    int x_cel;
-    cout << "Podaj x_cel <zakres od 0-19> :";
+    cout << "Podaj x_cel <0-19>: ";
     cin >> x_cel;
-    int y_cel; 
-    cout << "Podaj y_cel <zakres od 0-19> :";
+    cout << "Podaj y_cel <0-19>: ";
     cin >> y_cel;
 
-    if(x_cel > 19 || x_cel < 0 || y_cel > 19 || y_cel < 0)
-    {
-        cout << "Błędne wartości celów";
+    if(x_cel<0 || x_cel>19 || y_cel<0 || y_cel>19){
+        cout << "Bledne wartosci!" << endl;
         return 0;
     }
 
-    vector<vector<int>> tablica_zamnieta;
-    vector<vector<int>> tablica_otwarta;
-    tablica_zamnieta.push_back({x_start,y_start});
-    cout << "Cel: X=" << x_cel << " Y=" << y_cel << endl;
-    int cena_kroki=0;
-    int x_akt = x_start;
-    int y_akt = y_start;
+    vector<vector<int>> zamknieta;
+    vector<Node> otwarta;
 
-    while (true)
-    {
-        cena_kroki++;
-        dodanie_do_tab_otwartej(x_akt,y_akt,cena_kroki,x_cel,y_cel,grid,tablica_zamnieta,tablica_otwarta);
-        
-        
+    int x_akt=x_start;
+    int y_akt=y_start;
+    float cena=0;
 
-        if(czy_cel(tablica_zamnieta,x_cel,y_cel)) break;
+    zamknieta.push_back({x_akt,y_akt});
+
+    while(true){
+        cena+=1;
+        dodanie_do_tab_otwartej(x_akt,y_akt,cena,x_cel,y_cel, grid, zamknieta, otwarta);
+
+        int naj = 0;
+        for(int i=0;i<otwarta.size();i++)
+        {
+            if(otwarta[i].koszt_ogolny <= otwarta[naj].koszt_ogolny)
+            naj=i;
+        }
+
+        Node akt = otwarta[naj];
+
+        x_akt = akt.x;
+        y_akt = akt.y;
+        
+        zamknieta.push_back({x_akt,y_akt});
+
+        grid[x_akt][y_akt] = akt.koszt_ogolny;
+        
+        if(x_akt == x_cel && y_akt == y_cel)
+        {
+            cout << "znaleziono drogę" << endl;
+            break;
+        }
     }
 
+    //uzupełnienie grid_droga aby pokazać drogę przez wstawnianie liczby 99 w odpowienie miejsca
+    for(int i=0; i<zamknieta.size(); i++)
+    {
+        grid_droga[zamknieta[i][0]][zamknieta[i][1]]=99;
+    }
+    cout << "Mapa:" << endl;
     wyswietl_grid(grid);
-
+    cout << "Droga:" << endl;
+    wyswietl_grid(grid_droga);
     return 0;
 }

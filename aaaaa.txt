@@ -1,0 +1,151 @@
+#include <iostream>
+#include <fstream>
+#include <cmath>
+#include <vector>
+using namespace std;
+
+void wczytaj_grid(vector<vector<float>>& grid){
+    ifstream MyFile("./grid.txt");
+    grid.resize(20, vector<float>(20));
+    for(int i=0; i<20;i++){
+        for(int j=0; j<20; j++)
+        {
+            MyFile >> grid[i][j];
+        }
+    }
+}
+
+float heurystyka(int x_akt, int y_akt, int x_cel, int y_cel)
+{
+    return round(sqrt(pow((x_akt-x_cel),2)+pow((y_akt-y_cel),2))*100)/100;
+}
+
+void wyswietl_grid(vector<vector<float>>& tab){
+    for (int i=0; i<20; i++)
+    {
+        for (int j=0; j<20; j++)
+        {
+            cout << tab[i][j] << " ";
+        }
+        cout << endl;
+    }
+}
+
+bool czy_w_zamknietej(vector<vector<int>>& tablica_zamnieta, int x, int y){
+    for (int i=0; i<tablica_zamnieta.size();i++)
+    {
+        if(tablica_zamnieta[i][0]==x && tablica_zamnieta[i][1]==y)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool czy_w_otwartej(vector<vector<int>>& tablica_otwarta, int x, int y){
+    for (int i=0; i<tablica_otwarta.size();i++)
+    {
+        if(tablica_otwarta[i][0]==x && tablica_otwarta[i][1]==y)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+vector<int> aktualizacja_x_y_akt(vector<vector<float>>& grid, int x_akt, int y_akt) {
+    int kx[] = {-1, 1, 0, 0};
+    int ky[] = {0, 0, -1, 1};
+    float temp = 0;
+    vector<int> result={0,0};
+    for(int i=0;i<4;i++){
+        int nx = x_akt + kx[i];
+        int ny = y_akt + ky[i];
+        if(temp<=grid[x_akt+kx[i]][y_akt+ky[i]]){
+            temp=grid[x_akt+kx[i]][y_akt+ky[i]];
+            result={x_akt+kx[i],y_akt+ky[i]};
+        }
+    }
+    return result;
+}
+
+void dodanie_na_grid(int x_akt, int y_akt, int cena_kroki, int x_cel, int y_cel, vector<vector<float>>& grid, vector<vector<int>>& tablica_zamnieta, vector<vector<int>>& tablica_otwarta){
+    int kx[] = {-1, 1, 0, 0};
+    int ky[] = {0, 0, -1, 1};
+
+    for(int i=0;i<4;i++){
+        int nx = x_akt + kx[i];
+        int ny = y_akt + ky[i];
+        if(nx>=0 && nx<grid.size()&& ny>=0 && ny<grid[nx].size() && grid[nx][ny]!=5 && !czy_w_zamknietej(tablica_zamnieta,x_akt+kx[i],y_akt+ky[i]))
+        {
+            tablica_otwarta.push_back({nx,ny});
+        }
+    }
+}
+
+void dodanie_do_tab_otwartej(int x_akt, int y_akt, int cena_kroki, int x_cel, int y_cel, vector<vector<float>>& grid, vector<vector<int>>& tablica_zamnieta, vector<vector<int>>& tablica_otwarta){
+    int kx[] = {-1, 1, 0, 0};
+    int ky[] = {0, 0, -1, 1};
+
+    for(int i=0;i<4;i++){
+        int nx = x_akt + kx[i];
+        int ny = y_akt + ky[i];
+        if(nx>=0 && nx<grid.size()&& ny>=0 && ny<grid[nx].size() && grid[nx][ny]!=5 && !czy_w_zamknietej(tablica_zamnieta,x_akt+kx[i],y_akt+ky[i]))
+        {
+            tablica_otwarta.push_back({nx,ny});
+        }
+    }
+}
+
+bool czy_cel(vector<vector<int>>& tablica_zamnieta, int x_cel, int y_cel){
+    for(int i=0; i<tablica_zamnieta.size();i++)
+    {
+        if(tablica_zamnieta[i][0]==x_cel && tablica_zamnieta[i][1]==y_cel)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+int main() {
+    vector<vector<float>> grid; 
+    wczytaj_grid(grid);
+
+    int x_start=0;
+    int y_start=0;
+    int x_cel;
+    cout << "Podaj x_cel <zakres od 0-19> :";
+    cin >> x_cel;
+    int y_cel; 
+    cout << "Podaj y_cel <zakres od 0-19> :";
+    cin >> y_cel;
+
+    if(x_cel > 19 || x_cel < 0 || y_cel > 19 || y_cel < 0)
+    {
+        cout << "Błędne wartości celów";
+        return 0;
+    }
+
+    vector<vector<int>> tablica_zamnieta;
+    vector<vector<int>> tablica_otwarta;
+    tablica_zamnieta.push_back({x_start,y_start});
+    cout << "Cel: X=" << x_cel << " Y=" << y_cel << endl;
+    int cena_kroki=0;
+    int x_akt = x_start;
+    int y_akt = y_start;
+
+    while (true)
+    {
+        cena_kroki++;
+        dodanie_do_tab_otwartej(x_akt,y_akt,cena_kroki,x_cel,y_cel,grid,tablica_zamnieta,tablica_otwarta);
+        
+        
+
+        if(czy_cel(tablica_zamnieta,x_cel,y_cel)) break;
+    }
+
+    wyswietl_grid(grid);
+
+    return 0;
+}
